@@ -1,44 +1,24 @@
-// The MIT License (MIT)
-// 
-// Copyright (c) 2022 Trevor Bakker 
-// 
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-// 
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-// 
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/time.h>
 
-int main()
+int main(int argc, char *argv[])
 {
-  struct timeval begin_time;
-  struct timeval end_time;
+  if (argc < 2)
+  {
+    printf("Usage: ./time <program_to_run>\n");
+    return 1;
+  }
 
-  gettimeofday( &begin_time, NULL );
+  struct timeval begin_time, end_time;
+  gettimeofday(&begin_time, NULL);
 
-   // pretend stuff happens here by sleeping for a bit
-   //
-   usleep( 1000 );
+  system(argv[1]); // Run the specified program
 
-  gettimeofday( &end_time, NULL );
+  gettimeofday(&end_time, NULL);
+  long time_to_execute = (end_time.tv_sec * 1000000 + end_time.tv_usec) -
+                         (begin_time.tv_sec * 1000000 + begin_time.tv_usec);
 
-  long time_to_execute = ( end_time.tv_sec * 1000000 + end_time.tv_usec ) -
-                         ( begin_time.tv_sec * 1000000 + begin_time.tv_usec );
-
-  printf("This code took %d microseconds to execute\n", time_to_execute);
+  printf("Execution time: %ld microseconds\n", time_to_execute);
+  return 0;
 }
