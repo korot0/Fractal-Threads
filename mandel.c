@@ -1,4 +1,5 @@
 #include "bitmap.h"
+
 #include <getopt.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -159,7 +160,7 @@ void compute_image(struct bitmap *bm, double xmin, double xmax, double ymin, dou
 	pthread_t threads[num_threads];
 	ThreadParameters thread_data[num_threads];
 
-	// Divide the work among threads
+	// Divide the work among the threads
 	int rows_per_thread = height / num_threads;
 	for (int i = 0; i < num_threads; i++)
 	{
@@ -176,7 +177,7 @@ void compute_image(struct bitmap *bm, double xmin, double xmax, double ymin, dou
 		pthread_create(&threads[i], NULL, divide_threads, &thread_data[i]);
 	}
 
-	// Wait for all threads to finish
+	// Wait for all threads
 	for (int i = 0; i < num_threads; i++)
 	{
 		pthread_join(threads[i], NULL);
