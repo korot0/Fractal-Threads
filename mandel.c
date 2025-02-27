@@ -5,10 +5,53 @@
 #include <math.h>
 #include <errno.h>
 #include <string.h>
+#include <pthread.h>
+
+// struct for thread data/parameters
+typedef struct
+{
+	struct bitmap *bm;
+	double xmin, xmax, ymin, ymax;
+	int max_iterations, start_row, end_row;
+} ThreadParameters;
 
 int iteration_to_color(int i, int max);
 int iterations_at_point(double x, double y, int max);
 void compute_image(struct bitmap *bm, double xmin, double xmax, double ymin, double ymax, int max, int num_threads);
+
+/*
+ * This function runs in a thread to help speed up the work.
+ * Many threads run at the same time, each working on a different part of the image.
+ *
+ * Parameters:
+ *   - arg: Info about which part of the image this thread should handle.
+ *
+ * Returns:
+ *   - NULL (because threads must return something, but we don’t use it).
+ */
+void *divide_threads(void *arg)
+{
+	ThreadParameters *data = (ThreadParameters *)arg;
+	int width = bitmap_width(data->bm);
+
+	for (int j = data->start_row; j < data->end_row; j++)
+	{
+		for (int i = 0; i < width; i++)
+		{
+			// Determine the point in x,y space for that pixel
+			double x = data->xmin + i * (data->xmax - data->xmin) / width;
+			double y = data->ymin + j * (data->ymax - data->ymin) / bitmap_height(data->bm);
+
+			// Compute the iterations at that point
+			int iters = iterations_at_point(x, y, data->max_iterations);
+
+			// Set the pixel in the bitmap
+			bitmap_set(data->bm, i, j, iters);
+		}
+	}
+
+	return NULL;
+}
 
 void show_help()
 {
@@ -48,7 +91,7 @@ int main(int argc, char *argv[])
 	// For each command line argument given,
 	// override the appropriate configuration value.
 
-	while ((c = getopt(argc, argv, "x:y:s:W:H:m:o:h:n")) != -1)
+	while ((c = getopt(argc, argv, "x:y:s:W:H:m:o:h:n:")) != -1)
 	{
 		switch (c)
 		{
@@ -74,7 +117,8 @@ int main(int argc, char *argv[])
 			outfile = optarg;
 			break;
 		case 'n':
-			num_threads = atoi(optarg);
+			num_threads = atoi(optarg); // Added option for specifying how many threads to use.
+			break;
 		case 'h':
 			show_help();
 			exit(1);
@@ -111,29 +155,31 @@ Scale the image to the range (xmin-xmax,ymin-ymax), limiting iterations to "max"
 
 void compute_image(struct bitmap *bm, double xmin, double xmax, double ymin, double ymax, int max, int num_threads)
 {
-	int i, j;
-
-	int width = bitmap_width(bm);
 	int height = bitmap_height(bm);
+	pthread_t threads[num_threads];
+	ThreadParameters thread_data[num_threads];
 
-	// For every pixel in the image...
-
-	for (j = 0; j < height; j++)
+	// Divide the work among threads
+	int rows_per_thread = height / num_threads;
+	for (int i = 0; i < num_threads; i++)
 	{
+		thread_data[i].bm = bm;
+		thread_data[i].xmin = xmin;
+		thread_data[i].xmax = xmax;
+		thread_data[i].ymin = ymin;
+		thread_data[i].ymax = ymax;
+		thread_data[i].max_iterations = max;
+		thread_data[i].start_row = i * rows_per_thread;
+		thread_data[i].end_row = (i == num_threads - 1) ? height : (i + 1) * rows_per_thread;
 
-		for (i = 0; i < width; i++)
-		{
+		// Create the thread
+		pthread_create(&threads[i], NULL, divide_threads, &thread_data[i]);
+	}
 
-			// Determine the point in x,y space for that pixel.
-			double x = xmin + i * (xmax - xmin) / width;
-			double y = ymin + j * (ymax - ymin) / height;
-
-			// Compute the iterations at that point.
-			int iters = iterations_at_point(x, y, max);
-
-			// Set the pixel in the bitmap.
-			bitmap_set(bm, i, j, iters);
-		}
+	// Wait for all threads to finish
+	for (int i = 0; i < num_threads; i++)
+	{
+		pthread_join(threads[i], NULL);
 	}
 }
 
